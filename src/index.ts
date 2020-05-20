@@ -14,11 +14,12 @@ let PKG_LOCK_JSON_PATH = "";
 let TMP_FOLDER_PATH = "";
 let OUT_PATH = "";
 let TEMPLATE_PATH = "";
+const NO_MATCH_EXTENSIONS = ["js", "c", "cpp", "h", "class", "pl", "sh"]
 
 yargs.scriptName("npm-license-generator")
   .command("$0 [folder] [args]", "", yargs => {
     const argv = yargs
-      .positional("folder", { describe: "Folder of NPM project. Defaults to current working directory", type: "string" })
+      .option("folder", { describe: "Folder of NPM project. Defaults to current working directory", type: "string" })
       .option("out-path", { describe: "HTML output path", type: "string", default: "./licenses.html" })
       .option("registry", { describe: "URL of package registry to use", type: "string", default: "https://registry.npmjs.org" })
       .option("tmp-folder-name", { describe: "Name of temporary folder", type: "string", default: ".license-gen-tmp" })
@@ -162,6 +163,10 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
     // strip: 1,
     filter: (path) => {
       const regex = /(LICENSE|LICENCE|COPYING|COPYRIGHT).*/gim;
+      const extension = path.split(".");
+      if (NO_MATCH_EXTENSIONS.includes(extension[extension.length - 1])) {
+        return false;
+      }
       if (regex.test(path)) {
         return true;
       }
@@ -174,6 +179,11 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
   for (const path of files) {
     license.text.push(fs.readFileSync(path).toString().trim());
   }
+
+  if (!license.text.length) {
+    console.warn(`No license found for package ${license.pkg.name}.`);
+  }
+
   return license;
 }
 
