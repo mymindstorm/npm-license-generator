@@ -1,3 +1,4 @@
 node_modules
 licenses.html
 build
+.license-gen-tmp

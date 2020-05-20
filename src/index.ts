@@ -25,7 +25,7 @@ yargs.scriptName("npm-license-generator")
       .option("template", { describe: "Path to custom mustache template", type: "string" })
       .argv
 
-    CWD = argv.folder ? path.resolve(argv.folder) : process.cwd();    
+    CWD = argv.folder ? path.resolve(argv.folder) : process.cwd();
     REGISTRY = argv.registry;
     PKG_JSON_PATH = path.resolve(CWD, 'package.json');
     PKG_LOCK_JSON_PATH = path.resolve(CWD, 'package-lock.json');
@@ -68,18 +68,17 @@ async function main() {
 
   let pkgs: PkgInfo[] = [];
   for (const pkg of keys) {
-    try {
       let info: PkgInfo = { name: pkg, version: "" }
       if (pkgLockInfo) {
         if (pkgLockInfo.dependencies && pkgLockInfo.dependencies[pkg]) {
           info.version = pkgLockInfo.dependencies[pkg].version
           info.tarball = pkgLockInfo.dependencies[pkg].resolved
+        } else {
+          console.warn(`Could not find ${pkg} in package-lock.json! Skipping...`);
+          continue;
         }
       }
       pkgs.push(info);
-    } catch (e) {
-      console.warn(`Could not find ${pkg} in package-lock.json! Skipping...`);
-    }
   }
 
   if (!fs.existsSync(TMP_FOLDER_PATH)) {
@@ -89,11 +88,7 @@ async function main() {
   for (const pkg of pkgs) {
     promises.push(getPkgLicense(pkg));
   }
-  // TODO: dedupe and group
-  // TODO: handle empty license text
-  // TODO: add project name
-  // TODO: add project url
-  // TODO: custom template
+
   let licenses = await Promise.all(promises);
   licenses.sort((a, b) => {
     if (a.pkg.name < b.pkg.name) {
@@ -135,6 +130,9 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
         }
       }
       resolve()
+    }).catch(e => {
+      console.warn(`Could not get info from registry for ${pkg.name}! HTTP status code ${e.status}`);
+      return license;
     });
   });
   // Download tarball

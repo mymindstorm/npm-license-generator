@@ -11,6 +11,19 @@
 			"label": "npm: watch",
 			"detail": "tsc --watch",
 			"isBackground": true
+		},
+		{
+			"type": "npm",
+			"script": "build",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": [
+				"$tsc"
+			],
+			"label": "npm: build",
+			"detail": "tsc && cp -r view build"
 		}
 	]
 }

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body>
   <div class="licenses">
@@ -26,7 +27,20 @@
       padding-left: 1rem;
       padding-right: 1rem;
       display: inline-block;
-      width: 70%;
+      width: 50%;
+    }
+
+    @media only screen and (max-width: 768px) {
+      .licenses blockquote {
+        width: 100%;
+        margin: 0px;
+      }
+    }
+
+    @media only screen and (min-width: 768px) {
+      body {
+        margin-left: 10vw;
+      }
     }
 
     .licenses h3 {
