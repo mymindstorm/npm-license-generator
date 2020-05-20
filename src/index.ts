@@ -2,14 +2,40 @@ import superagent from "superagent";
 import process from "process";
 import path from "path";
 import fs from "fs";
+import rimraf from "rimraf";
+import yargs, { Argv } from "yargs";
 import tar from "tar";
 import mustache from "mustache";
 
-const REGISTRY = "https://registry.npmjs.org";
-const PKG_JSON_PATH = path.resolve(process.cwd(), 'package.json');
-const PKG_LOCK_JSON_PATH = path.resolve(process.cwd(), 'package-lock.json');
-const TMP_FOLDER_PATH = path.resolve(process.cwd(), '.license-gen-tmp');
-const OUT_PATH = path.resolve(process.cwd(), 'licenses.html');
+let CWD = "";
+let REGISTRY = "";
+let PKG_JSON_PATH = "";
+let PKG_LOCK_JSON_PATH = "";
+let TMP_FOLDER_PATH = "";
+let OUT_PATH = "";
+let TEMPLATE_PATH = "";
+
+yargs.scriptName("npm-license-generator")
+  .command("$0 [folder] [args]", "", yargs => {
+    const argv = yargs
+      .positional("folder", { describe: "Folder of NPM project. Defaults to current working directory", type: "string" })
+      .option("out-path", { describe: "HTML output path", type: "string", default: "./licenses.html" })
+      .option("registry", { describe: "URL of package registry to use", type: "string", default: "https://registry.npmjs.org" })
+      .option("tmp-folder-name", { describe: "Name of temporary folder", type: "string", default: ".license-gen-tmp" })
+      .option("template", { describe: "Path to custom mustache template", type: "string" })
+      .argv
+
+    CWD = argv.folder ? path.resolve(argv.folder) : process.cwd();    
+    REGISTRY = argv.registry;
+    PKG_JSON_PATH = path.resolve(CWD, 'package.json');
+    PKG_LOCK_JSON_PATH = path.resolve(CWD, 'package-lock.json');
+    TMP_FOLDER_PATH = path.resolve(CWD, argv["tmp-folder-name"]);
+    OUT_PATH = path.resolve(argv["out-path"]);
+    TEMPLATE_PATH = argv.template ? path.resolve(argv.template) : path.join(__dirname, "view", "template.html");
+    main();
+  })
+  .help()
+  .argv
 
 async function main() {
   let pkgInfo: PkgJsonData | undefined;
@@ -67,11 +93,22 @@ async function main() {
   // TODO: handle empty license text
   // TODO: add project name
   // TODO: add project url
-  const licenses = await Promise.all(promises);
-  const outtext = mustache.render(fs.readFileSync(path.join(__dirname, "template.html")).toString(), { licenses })
+  // TODO: custom template
+  let licenses = await Promise.all(promises);
+  licenses.sort((a, b) => {
+    if (a.pkg.name < b.pkg.name) {
+      return -1;
+    } else if (a.pkg.name > b.pkg.name) {
+      return 1;
+    } else {
+      return 0;
+    }
+  });
 
-  fs.writeFileSync(OUT_PATH, outtext)
-  fs.rmdirSync(TMP_FOLDER_PATH, { recursive: true });
+  const outtext = mustache.render(fs.readFileSync(TEMPLATE_PATH).toString(), { licenses })
+
+  fs.writeFileSync(OUT_PATH, outtext);
+  rimraf.sync(TMP_FOLDER_PATH);
   console.log("Done!")
 }
 
@@ -84,10 +121,11 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
   }
   const url = new URL(REGISTRY);
   url.pathname = pkg.name;
-  // Get registry info if not in lockfile
+  // Get registry info
   await new Promise(resolve => {
     superagent.get(url.toString()).then(res => {
       license.type = res.body.license;
+      license.pkg.homepage = res.body.homepage || res.body.repository.url
       if (!pkg.tarball) {
         try {
           pkg.tarball = res.body.versions[pkg.version].dist.tarball;
@@ -156,5 +194,3 @@ function getAllFiles(dirPath: string, arrayOfFiles?: string[]) {
 
   return arrayOfFiles
 }
-
-main()

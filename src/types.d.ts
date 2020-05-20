@@ -31,6 +31,7 @@ interface PkgInfo {
   name: string,
   version: string,
   tarball?: string
+  homepage?: string
 }
 
 interface LicenseInfo {
