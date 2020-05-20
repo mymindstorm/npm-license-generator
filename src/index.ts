@@ -100,7 +100,7 @@ async function main() {
     }
   });
 
-  const outtext = mustache.render(fs.readFileSync(TEMPLATE_PATH).toString(), { licenses })
+  const outtext = mustache.render(fs.readFileSync(TEMPLATE_PATH).toString(), { licenses, name: pkgInfo.name })
 
   fs.writeFileSync(OUT_PATH, outtext);
   rimraf.sync(TMP_FOLDER_PATH);

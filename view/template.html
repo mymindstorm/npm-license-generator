@@ -4,6 +4,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body>
+  <h1 id="package-name">{{name}}</h1>
   <div class="licenses">
     {{#licenses}}
     {{#pkg.homepage}}
@@ -43,7 +44,7 @@
       }
     }
 
-    .licenses h3 {
+    .licenses h3, #package-name {
       font-family: sans-serif;
     }
   </style>
