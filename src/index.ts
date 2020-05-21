@@ -17,22 +17,23 @@ let TEMPLATE_PATH = "";
 const NO_MATCH_EXTENSIONS = ["js", "c", "cpp", "h", "class", "pl", "sh"]
 
 yargs.scriptName("npm-license-generator")
-  .command("$0 [folder] [args]", "", yargs => {
+  .command("$0 [folder]", "", yargs => {
     const argv = yargs
-      .option("folder", { describe: "Folder of NPM project. Defaults to current working directory", type: "string" })
+      .positional("folder", { describe: "Folder of NPM project. Defaults to current working directory", type: "string" })
       .option("out-path", { describe: "HTML output path", type: "string", default: "./licenses.html" })
       .option("registry", { describe: "URL of package registry to use", type: "string", default: "https://registry.npmjs.org" })
       .option("tmp-folder-name", { describe: "Name of temporary folder", type: "string", default: ".license-gen-tmp" })
       .option("template", { describe: "Path to custom mustache template", type: "string" })
       .argv
 
-    CWD = argv.folder ? path.resolve(argv.folder) : process.cwd();
+    const folder = (argv.folder || argv._[0])
+    CWD = folder ? path.resolve(folder) : process.cwd();
     REGISTRY = argv.registry;
     PKG_JSON_PATH = path.resolve(CWD, 'package.json');
     PKG_LOCK_JSON_PATH = path.resolve(CWD, 'package-lock.json');
     TMP_FOLDER_PATH = path.resolve(CWD, argv["tmp-folder-name"]);
     OUT_PATH = path.resolve(argv["out-path"]);
-    TEMPLATE_PATH = argv.template ? path.resolve(argv.template) : path.join(__dirname, "view", "template.html");
+    TEMPLATE_PATH = argv.template ? path.resolve(argv.template) : path.join(__dirname, "template.html");
     main();
   })
   .help()

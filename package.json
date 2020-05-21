@@ -3,8 +3,12 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "bin": {
+    "npm-license-generator": "./build/npm-license-generator"
+  },
+  "files": [ "build" ],
   "scripts": {
-    "build": "tsc && cp -r view build",
+    "build": "tsc && cp -r lib/* build",
     "watch": "tsc --watch"
   },
   "author": "Brendan Early <mymindstorm@evermiss.net>",
