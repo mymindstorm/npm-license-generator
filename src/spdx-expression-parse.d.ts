@@ -1,13 +1,13 @@
-declare module 'spdx-expression-parse' {
-    export default function parse(license: string): license | junction;
+declare module "spdx-expression-parse" {
+  export default function parse(license: string): SPDXLicense | SPDXJunction;
 }
 
-interface license {
-    license: string;
+interface SPDXLicense {
+  license: string;
 }
 
-interface junction {
-    left: license | junction;
-    conjunction: string;
-    right: license | junction;
+interface SPDXJunction {
+  left: SPDXLicense | SPDXJunction;
+  conjunction: string;
+  right: SPDXLicense | SPDXJunction;
 }

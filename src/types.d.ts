@@ -3,10 +3,12 @@ interface PkgJsonData {
   version: string;
   homepage?: string;
   license?: string;
-  repository?: {
-    type: string;
-    url: string;
-  } | string;
+  repository?:
+    | {
+        type: string;
+        url: string;
+      }
+    | string;
   dependencies?: {
     [key: string]: string;
   };
