@@ -3,9 +3,10 @@ import process from "process";
 import path from "path";
 import fs from "fs";
 import rimraf from "rimraf";
-import yargs, { Argv } from "yargs";
+import yargs from "yargs";
 import tar from "tar";
 import mustache from "mustache";
+import spdx from "spdx-expression-parse";
 
 let CWD = "";
 let REGISTRY = "";
@@ -70,17 +71,17 @@ async function main() {
 
   let pkgs: PkgInfo[] = [];
   for (const pkg of keys) {
-      let info: PkgInfo = { name: pkg, version: "" }
-      if (pkgLockInfo) {
-        if (pkgLockInfo.dependencies && pkgLockInfo.dependencies[pkg]) {
-          info.version = pkgLockInfo.dependencies[pkg].version
-          info.tarball = pkgLockInfo.dependencies[pkg].resolved
-        } else {
-          console.warn(`Could not find ${pkg} in package-lock.json! Skipping...`);
-          continue;
-        }
+    let info: PkgInfo = { name: pkg, version: "" }
+    if (pkgLockInfo) {
+      if (pkgLockInfo.dependencies && pkgLockInfo.dependencies[pkg]) {
+        info.version = pkgLockInfo.dependencies[pkg].version
+        info.tarball = pkgLockInfo.dependencies[pkg].resolved
+      } else {
+        console.warn(`Could not find ${pkg} in package-lock.json! Skipping...`);
+        continue;
       }
-      pkgs.push(info);
+    }
+    pkgs.push(info);
   }
 
   if (!fs.existsSync(TMP_FOLDER_PATH)) {
@@ -182,7 +183,44 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
   }
 
   if (!license.text.length) {
-    console.warn(`No license found for package ${license.pkg.name}.`);
+    console.warn(`No license file found for package ${license.pkg.name}, using SPDX string.`);
+
+    await new Promise(async resolve => {
+      const parsedLicense = spdx(license.type);
+      const licenseStrings: string[] = []
+      if ("license" in parsedLicense) {
+        licenseStrings.push(parsedLicense.license);
+      } else {
+        let getLicenses = (license: junction) => {
+          if ("license" in license.left) {
+            licenseStrings.push(license.left.license);
+          } else {
+            getLicenses(license.left);
+          }
+
+          if ("license" in license.right) {
+            licenseStrings.push(license.right.license);
+          } else {
+            getLicenses(license.right);
+          }
+        }
+        getLicenses(parsedLicense);
+      }
+
+      for (const licenseString of licenseStrings) {
+        await new Promise(resolve => {
+          superagent.get(`https://raw.githubusercontent.com/spdx/license-list-data/master/text/${licenseString}.txt`)
+            .then(res => {
+              license.text.push(res.text);
+              resolve();
+            })
+            .catch(e => {
+              console.warn(`Error downloading license for ${license.pkg.name}. ${licenseString} ${e.status}`);
+            });
+        })
+      }
+      resolve();
+    })
   }
 
   return license;

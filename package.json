@@ -6,7 +6,9 @@
   "bin": {
     "npm-license-generator": "./build/npm-license-generator"
   },
-  "files": [ "build" ],
+  "files": [
+    "build"
+  ],
   "scripts": {
     "build": "tsc && cp -r lib/* build",
     "watch": "tsc --watch"
@@ -28,6 +30,7 @@
   "dependencies": {
     "mustache": "^4.0.1",
     "rimraf": "^3.0.2",
+    "spdx-expression-parse": "^3.0.1",
     "superagent": "^5.2.2",
     "tar": "^6.0.2",
     "yargs": "^15.3.1"
