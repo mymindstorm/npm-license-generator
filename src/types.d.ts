@@ -41,3 +41,12 @@ interface LicenseInfo {
   type: string;
   text: string[];
 }
+
+interface GroupedLicensePkg extends PkgInfo {
+  comma: boolean;
+}
+
+interface GroupedLicense {
+  pkgs: GroupedLicensePkg[];
+  text: string;
+}

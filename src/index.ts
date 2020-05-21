@@ -15,6 +15,7 @@ let PKG_LOCK_JSON_PATH = "";
 let TMP_FOLDER_PATH = "";
 let OUT_PATH = "";
 let TEMPLATE_PATH = "";
+let NO_GROUP = false;
 const NO_MATCH_EXTENSIONS = ["js", "c", "cpp", "h", "class", "pl", "sh"];
 
 function getAllFiles(dirPath: string, arrayOfFiles?: string[]): string[] {
@@ -231,8 +232,41 @@ async function main(): Promise<void> {
     }
   });
 
+  const groupedLicenses: GroupedLicense[] = [];
+  if (!NO_GROUP) {
+    for (const license of licenses) {
+      for (const i in license.text) {
+        const text = license.text[i];
+        if (text) {
+          let found = false;
+          for (const groupedLicense of groupedLicenses) {
+            if (groupedLicense.text.includes(text)) {
+              groupedLicense.pkgs.push({ ...license.pkg, comma: true });
+              found = true;
+            }
+          }
+          if (!found) {
+            groupedLicenses.push({
+              pkgs: [{ ...license.pkg, comma: true }],
+              text,
+            });
+          }
+        }
+      }
+    }
+
+    for (const license of groupedLicenses) {
+      for (const i in license.pkgs) {
+        if (i === String(license.pkgs.length - 1)) {
+          license.pkgs[i].comma = false;
+        }
+      }
+    }
+  }
+
+  const renderLicenses = NO_GROUP ? licenses : groupedLicenses;
   const outtext = mustache.render(fs.readFileSync(TEMPLATE_PATH).toString(), {
-    licenses,
+    renderLicenses,
     name: pkgInfo.name,
   });
 
@@ -268,6 +302,11 @@ yargs
       .option("template", {
         describe: "Path to custom mustache template",
         type: "string",
+      })
+      .option("no-group", {
+        describe: "Do not group licenses",
+        type: "boolean",
+        default: false,
       }).argv;
 
     const folder = argv.folder || argv._[0];
@@ -277,9 +316,13 @@ yargs
     PKG_LOCK_JSON_PATH = path.resolve(CWD, "package-lock.json");
     TMP_FOLDER_PATH = path.resolve(CWD, argv["tmp-folder-name"]);
     OUT_PATH = path.resolve(argv["out-path"]);
+    NO_GROUP = argv["no-group"];
     TEMPLATE_PATH = argv.template
       ? path.resolve(argv.template)
-      : path.join(__dirname, "template.html");
+      : path.join(
+          __dirname,
+          NO_GROUP ? "template.html" : "template-grouped.html"
+        );
     main();
   })
   .help().argv;

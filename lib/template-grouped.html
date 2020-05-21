@@ -1,24 +1,23 @@
 <!DOCTYPE html>
+
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1">
 </head>
+
 <body>
   <h1 id="package-name">{{name}}</h1>
   <div class="licenses">
     {{#renderLicenses}}
-    {{#pkg.homepage}}
-    <a href="{{{pkg.homepage}}}">
-    {{/pkg.homepage}}
-      <h3 id="{{{pkg.name}}}">{{pkg.name}}</h3>
-    {{#pkg.homepage}}
-    </a>
-    {{/pkg.homepage}}
-    {{#text}}
+    <h3>
+      {{#pkgs}}
+      {{#homepage}}<a href="{{{homepage}}}">{{/homepage}}{{name}}{{#homepage}}</a>{{/homepage}}{{#comma}}, {{/comma}}
+      {{/pkgs}}
+    </h3>
     <blockquote>
-      {{.}}
+      {{text}}
     </blockquote>
-    {{/text}}
     {{/renderLicenses}}
   </div>
   <style>
@@ -44,7 +43,8 @@
       }
     }
 
-    .licenses h3, #package-name {
+    .licenses h3,
+    #package-name {
       font-family: sans-serif;
     }
   </style>
