@@ -43,6 +43,7 @@ interface LicenseInfo {
 }
 
 interface GroupedLicensePkg extends PkgInfo {
+  // false if last item in group
   comma: boolean;
 }
 
