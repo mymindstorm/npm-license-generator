@@ -16,6 +16,7 @@ let TMP_FOLDER_PATH = "";
 let OUT_PATH = "";
 let TEMPLATE_PATH = "";
 let NO_GROUP = false;
+let RUN_PKG_LOCK = false;
 const NO_MATCH_EXTENSIONS = ["js", "c", "cpp", "h", "class", "pl", "sh"];
 
 function getAllFiles(dirPath: string, arrayOfFiles?: string[]): string[] {
@@ -49,6 +50,16 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
       .get(url.toString())
       .then((res) => {
         license.type = res.body.license;
+        if (!res.body.license) {
+          try {
+            license.type = res.body.versions[pkg.version].license;
+          } catch (e) {
+            console.error(
+              `Could not find license info in registry for ${pkg.name} ${pkg.version}`
+            );
+            return license;
+          }
+        }
         license.pkg.homepage = res.body.homepage || res.body.repository.url;
         if (!pkg.tarball) {
           try {
@@ -124,7 +135,20 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
 
     // eslint-disable-next-line no-async-promise-executor
     await new Promise(async (resolve) => {
-      const parsedLicense = spdx(license.type);
+      let parsedLicense: SPDXLicense | SPDXJunction | undefined;
+      try {
+        parsedLicense = spdx(license.type);
+      } catch (e) {
+        console.error(
+          `Error: Could not parse licesnse string for ${license.pkg.name}! L: ${license.type}`
+        );
+        resolve();
+        return;
+      }
+      if (!parsedLicense) {
+        resolve();
+        return;
+      }
       const licenseStrings: string[] = [];
       if ("license" in parsedLicense) {
         licenseStrings.push(parsedLicense.license);
@@ -157,8 +181,9 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
             })
             .catch((e) => {
               console.warn(
-                `Error downloading license for ${license.pkg.name}. ${licenseString} ${e.status}`
+                `Error downloading license for ${license.pkg.name}. L: ${licenseString} S: ${e.status}`
               );
+              resolve();
             });
         });
       }
@@ -188,14 +213,20 @@ async function main(): Promise<void> {
   }
 
   let keys: string[] = [];
-  if (pkgInfo.dependencies) {
-    keys = keys.concat(Object.keys(pkgInfo.dependencies));
-  }
-  if (pkgInfo.devDependencies) {
-    keys = keys.concat(Object.keys(pkgInfo.devDependencies));
-  }
-  if (pkgInfo.optionalDependencies) {
-    keys = keys.concat(Object.keys(pkgInfo.optionalDependencies));
+  if (!RUN_PKG_LOCK) {
+    if (pkgInfo.dependencies) {
+      keys = keys.concat(Object.keys(pkgInfo.dependencies));
+    }
+    if (pkgInfo.devDependencies) {
+      keys = keys.concat(Object.keys(pkgInfo.devDependencies));
+    }
+    if (pkgInfo.optionalDependencies) {
+      keys = keys.concat(Object.keys(pkgInfo.optionalDependencies));
+    }
+  } else {
+    if (pkgLockInfo && pkgLockInfo.dependencies) {
+      keys = Object.keys(pkgLockInfo.dependencies);
+    }
   }
 
   const pkgs: PkgInfo[] = [];
@@ -307,6 +338,11 @@ yargs
         describe: "Do not group licenses",
         type: "boolean",
         default: false,
+      })
+      .option("package-lock", {
+        describe: "Run on all packages listed in package-lock.json",
+        type: "boolean",
+        default: false,
       }).argv;
 
     const folder = argv.folder || argv._[0];
@@ -323,6 +359,7 @@ yargs
           __dirname,
           NO_GROUP ? "template.html" : "template-grouped.html"
         );
+    RUN_PKG_LOCK = argv["package-lock"];
     main();
   })
   .help().argv;

@@ -11,11 +11,13 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}\\build\\index.js",
-            "args": ["../../../Authenticator/Authenticator/"],
+            "program": "${workspaceFolder}/build/index.js",
+            "args": ["--package-lock=true"],
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
-            ]
+            ],
+            "preLaunchTask": "${defaultBuildTask}",
+            "internalConsoleOptions": "openOnSessionStart"
         }
     ]
 }
