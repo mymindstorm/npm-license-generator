@@ -17,6 +17,8 @@ let OUT_PATH = "";
 let TEMPLATE_PATH = "";
 let NO_GROUP = false;
 let RUN_PKG_LOCK = false;
+let NO_SPDX = false;
+let ERR_MISSING = false;
 const NO_MATCH_EXTENSIONS = ["js", "c", "cpp", "h", "class", "pl", "sh"];
 
 function getAllFiles(dirPath: string, arrayOfFiles?: string[]): string[] {
@@ -130,65 +132,73 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
 
   if (!license.text.length) {
     console.warn(
-      `No license file found for package ${license.pkg.name}, using SPDX string.`
+      `No license file found for package ${license.pkg.name}${
+        NO_SPDX ? "" : ", using SPDX string"
+      }.`
     );
 
-    // eslint-disable-next-line no-async-promise-executor
-    await new Promise(async (resolve) => {
-      let parsedLicense: SPDXLicense | SPDXJunction | undefined;
-      try {
-        parsedLicense = spdx(license.type);
-      } catch (e) {
-        console.error(
-          `Error: Could not parse licesnse string for ${license.pkg.name}! L: ${license.type}`
-        );
-        resolve();
-        return;
-      }
-      if (!parsedLicense) {
-        resolve();
-        return;
-      }
-      const licenseStrings: string[] = [];
-      if ("license" in parsedLicense) {
-        licenseStrings.push(parsedLicense.license);
-      } else {
-        const getLicenses = (license: SPDXJunction): void => {
-          if ("license" in license.left) {
-            licenseStrings.push(license.left.license);
-          } else {
-            getLicenses(license.left);
-          }
+    if (!NO_SPDX) {
+      // eslint-disable-next-line no-async-promise-executor
+      await new Promise(async (resolve) => {
+        let parsedLicense: SPDXLicense | SPDXJunction | undefined;
+        try {
+          parsedLicense = spdx(license.type);
+        } catch (e) {
+          console.error(
+            `Error: Could not parse licesnse string for ${license.pkg.name}! L: ${license.type}`
+          );
+          resolve();
+          return;
+        }
+        if (!parsedLicense) {
+          resolve();
+          return;
+        }
+        const licenseStrings: string[] = [];
+        if ("license" in parsedLicense) {
+          licenseStrings.push(parsedLicense.license);
+        } else {
+          const getLicenses = (license: SPDXJunction): void => {
+            if ("license" in license.left) {
+              licenseStrings.push(license.left.license);
+            } else {
+              getLicenses(license.left);
+            }
 
-          if ("license" in license.right) {
-            licenseStrings.push(license.right.license);
-          } else {
-            getLicenses(license.right);
-          }
-        };
-        getLicenses(parsedLicense);
-      }
+            if ("license" in license.right) {
+              licenseStrings.push(license.right.license);
+            } else {
+              getLicenses(license.right);
+            }
+          };
+          getLicenses(parsedLicense);
+        }
 
-      for (const licenseString of licenseStrings) {
-        await new Promise((resolve) => {
-          superagent
-            .get(
-              `https://raw.githubusercontent.com/spdx/license-list-data/master/text/${licenseString}.txt`
-            )
-            .then((res) => {
-              license.text.push(res.text);
-              resolve();
-            })
-            .catch((e) => {
-              console.warn(
-                `Error downloading license for ${license.pkg.name}. L: ${licenseString} S: ${e.status}`
-              );
-              resolve();
-            });
-        });
-      }
-      resolve();
-    });
+        for (const licenseString of licenseStrings) {
+          await new Promise((resolve) => {
+            superagent
+              .get(
+                `https://raw.githubusercontent.com/spdx/license-list-data/master/text/${licenseString}.txt`
+              )
+              .then((res) => {
+                license.text.push(res.text);
+                resolve();
+              })
+              .catch((e) => {
+                console.warn(
+                  `Error downloading license for ${license.pkg.name}. L: ${licenseString} S: ${e.status}`
+                );
+                resolve();
+              });
+          });
+        }
+        resolve();
+      });
+    }
+
+    if (!license.text.length && ERR_MISSING) {
+      process.exit(1);
+    }
   }
 
   return license;
@@ -343,6 +353,16 @@ yargs
         describe: "Run on all packages listed in package-lock.json",
         type: "boolean",
         default: false,
+      })
+      .option("no-spdx", {
+        describe: "Do not download license file based on SPDX string",
+        type: "boolean",
+        default: false,
+      })
+      .option("error-missing", {
+        describe: "Exit 1 if no licesense is present for a package",
+        type: "boolean",
+        default: false,
       }).argv;
 
     const folder = argv.folder || argv._[0];
@@ -360,6 +380,8 @@ yargs
           NO_GROUP ? "template.html" : "template-grouped.html"
         );
     RUN_PKG_LOCK = argv["package-lock"];
+    NO_SPDX = argv["no-spdx"];
+    ERR_MISSING = argv["error-missing"];
     main();
   })
   .help().argv;

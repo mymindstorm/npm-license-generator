@@ -12,7 +12,7 @@
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/build/index.js",
-            "args": ["--package-lock=true"],
+            "args": ["--package-lock=true", "--error-missing=true"],
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ],
