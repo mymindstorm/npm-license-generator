@@ -3,11 +3,11 @@ declare module 'spdx-expression-parse' {
 }
 
 interface license {
-    license: string
+    license: string;
 }
 
 interface junction {
-    left: license | junction,
-    conjunction: string,
-    right: license | junction
+    left: license | junction;
+    conjunction: string;
+    right: license | junction;
 }

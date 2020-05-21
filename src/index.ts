@@ -17,102 +17,25 @@ let OUT_PATH = "";
 let TEMPLATE_PATH = "";
 const NO_MATCH_EXTENSIONS = ["js", "c", "cpp", "h", "class", "pl", "sh"]
 
-yargs.scriptName("npm-license-generator")
-  .command("$0 [folder]", "", yargs => {
-    const argv = yargs
-      .positional("folder", { describe: "Folder of NPM project. Defaults to current working directory", type: "string" })
-      .option("out-path", { describe: "HTML output path", type: "string", default: "./licenses.html" })
-      .option("registry", { describe: "URL of package registry to use", type: "string", default: "https://registry.npmjs.org" })
-      .option("tmp-folder-name", { describe: "Name of temporary folder", type: "string", default: ".license-gen-tmp" })
-      .option("template", { describe: "Path to custom mustache template", type: "string" })
-      .argv
+function getAllFiles(dirPath: string, arrayOfFiles?: string[]): string[] {
+  const files = fs.readdirSync(dirPath)
 
-    const folder = (argv.folder || argv._[0])
-    CWD = folder ? path.resolve(folder) : process.cwd();
-    REGISTRY = argv.registry;
-    PKG_JSON_PATH = path.resolve(CWD, 'package.json');
-    PKG_LOCK_JSON_PATH = path.resolve(CWD, 'package-lock.json');
-    TMP_FOLDER_PATH = path.resolve(CWD, argv["tmp-folder-name"]);
-    OUT_PATH = path.resolve(argv["out-path"]);
-    TEMPLATE_PATH = argv.template ? path.resolve(argv.template) : path.join(__dirname, "template.html");
-    main();
-  })
-  .help()
-  .argv
+  arrayOfFiles = arrayOfFiles || []
 
-async function main() {
-  let pkgInfo: PkgJsonData | undefined;
-  let pkgLockInfo: PkgLockJsonData | undefined;
-  try {
-    const pkgJson = fs.readFileSync(PKG_JSON_PATH, 'utf8');
-    pkgInfo = JSON.parse(pkgJson);
-    const pkgLockJson = fs.readFileSync(PKG_LOCK_JSON_PATH, 'utf8');
-    pkgLockInfo = JSON.parse(pkgLockJson);
-  } catch (e) {
-    console.error("Error parsing package.json or package-lock.json", e);
-    process.exit(1);
-  }
-
-  if (!pkgInfo) {
-    console.error("pkgInfo undefined");
-    process.exit(1);
-  }
-
-  let keys: string[] = [];
-  if (pkgInfo.dependencies) {
-    keys = keys.concat(Object.keys(pkgInfo.dependencies));
-  }
-  if (pkgInfo.devDependencies) {
-    keys = keys.concat(Object.keys(pkgInfo.devDependencies));
-  }
-  if (pkgInfo.optionalDependencies) {
-    keys = keys.concat(Object.keys(pkgInfo.optionalDependencies));
-  }
-
-  let pkgs: PkgInfo[] = [];
-  for (const pkg of keys) {
-    let info: PkgInfo = { name: pkg, version: "" }
-    if (pkgLockInfo) {
-      if (pkgLockInfo.dependencies && pkgLockInfo.dependencies[pkg]) {
-        info.version = pkgLockInfo.dependencies[pkg].version
-        info.tarball = pkgLockInfo.dependencies[pkg].resolved
-      } else {
-        console.warn(`Could not find ${pkg} in package-lock.json! Skipping...`);
-        continue;
-      }
-    }
-    pkgs.push(info);
-  }
-
-  if (!fs.existsSync(TMP_FOLDER_PATH)) {
-    fs.mkdirSync(TMP_FOLDER_PATH);
-  }
-  const promises: Promise<LicenseInfo>[] = [];
-  for (const pkg of pkgs) {
-    promises.push(getPkgLicense(pkg));
-  }
-
-  let licenses = await Promise.all(promises);
-  licenses.sort((a, b) => {
-    if (a.pkg.name < b.pkg.name) {
-      return -1;
-    } else if (a.pkg.name > b.pkg.name) {
-      return 1;
+  files.forEach(function (file) {
+    if (fs.statSync(dirPath + "/" + file).isDirectory()) {
+      arrayOfFiles = getAllFiles(dirPath + "/" + file, arrayOfFiles)
     } else {
-      return 0;
+      arrayOfFiles?.push(path.join(dirPath, file))
     }
-  });
+  })
 
-  const outtext = mustache.render(fs.readFileSync(TEMPLATE_PATH).toString(), { licenses, name: pkgInfo.name })
-
-  fs.writeFileSync(OUT_PATH, outtext);
-  rimraf.sync(TMP_FOLDER_PATH);
-  console.log("Done!")
+  return arrayOfFiles
 }
 
 async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
   // Get package info from registry
-  let license: LicenseInfo = {
+  const license: LicenseInfo = {
     pkg: pkg,
     type: "",
     text: []
@@ -177,7 +100,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
   });
 
   // Throw license files into array
-  let files = getAllFiles(extractFolder);
+  const files = getAllFiles(extractFolder);
   for (const path of files) {
     license.text.push(fs.readFileSync(path).toString().trim());
   }
@@ -185,13 +108,14 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
   if (!license.text.length) {
     console.warn(`No license file found for package ${license.pkg.name}, using SPDX string.`);
 
+    // eslint-disable-next-line no-async-promise-executor
     await new Promise(async resolve => {
       const parsedLicense = spdx(license.type);
       const licenseStrings: string[] = []
       if ("license" in parsedLicense) {
         licenseStrings.push(parsedLicense.license);
       } else {
-        let getLicenses = (license: junction) => {
+        const getLicenses = (license: junction): void => {
           if ("license" in license.left) {
             licenseStrings.push(license.left.license);
           } else {
@@ -226,18 +150,95 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
   return license;
 }
 
-function getAllFiles(dirPath: string, arrayOfFiles?: string[]) {
-  const files = fs.readdirSync(dirPath)
+async function main(): Promise<void> {
+  let pkgInfo: PkgJsonData | undefined;
+  let pkgLockInfo: PkgLockJsonData | undefined;
+  try {
+    const pkgJson = fs.readFileSync(PKG_JSON_PATH, 'utf8');
+    pkgInfo = JSON.parse(pkgJson);
+    const pkgLockJson = fs.readFileSync(PKG_LOCK_JSON_PATH, 'utf8');
+    pkgLockInfo = JSON.parse(pkgLockJson);
+  } catch (e) {
+    console.error("Error parsing package.json or package-lock.json", e);
+    process.exit(1);
+  }
 
-  arrayOfFiles = arrayOfFiles || []
+  if (!pkgInfo) {
+    console.error("pkgInfo undefined");
+    process.exit(1);
+  }
 
-  files.forEach(function (file) {
-    if (fs.statSync(dirPath + "/" + file).isDirectory()) {
-      arrayOfFiles = getAllFiles(dirPath + "/" + file, arrayOfFiles)
-    } else {
-      arrayOfFiles?.push(path.join(dirPath, file))
+  let keys: string[] = [];
+  if (pkgInfo.dependencies) {
+    keys = keys.concat(Object.keys(pkgInfo.dependencies));
+  }
+  if (pkgInfo.devDependencies) {
+    keys = keys.concat(Object.keys(pkgInfo.devDependencies));
+  }
+  if (pkgInfo.optionalDependencies) {
+    keys = keys.concat(Object.keys(pkgInfo.optionalDependencies));
+  }
+
+  const pkgs: PkgInfo[] = [];
+  for (const pkg of keys) {
+    const info: PkgInfo = { name: pkg, version: "" }
+    if (pkgLockInfo) {
+      if (pkgLockInfo.dependencies && pkgLockInfo.dependencies[pkg]) {
+        info.version = pkgLockInfo.dependencies[pkg].version
+        info.tarball = pkgLockInfo.dependencies[pkg].resolved
+      } else {
+        console.warn(`Could not find ${pkg} in package-lock.json! Skipping...`);
+        continue;
+      }
     }
-  })
+    pkgs.push(info);
+  }
 
-  return arrayOfFiles
+  if (!fs.existsSync(TMP_FOLDER_PATH)) {
+    fs.mkdirSync(TMP_FOLDER_PATH);
+  }
+  const promises: Promise<LicenseInfo>[] = [];
+  for (const pkg of pkgs) {
+    promises.push(getPkgLicense(pkg));
+  }
+
+  const licenses = await Promise.all(promises);
+  licenses.sort((a, b) => {
+    if (a.pkg.name < b.pkg.name) {
+      return -1;
+    } else if (a.pkg.name > b.pkg.name) {
+      return 1;
+    } else {
+      return 0;
+    }
+  });
+
+  const outtext = mustache.render(fs.readFileSync(TEMPLATE_PATH).toString(), { licenses, name: pkgInfo.name })
+
+  fs.writeFileSync(OUT_PATH, outtext);
+  rimraf.sync(TMP_FOLDER_PATH);
+  console.log("Done!")
 }
+
+yargs.scriptName("npm-license-generator")
+  .command("$0 [folder]", "", yargs => {
+    const argv = yargs
+      .positional("folder", { describe: "Folder of NPM project. Defaults to current working directory", type: "string" })
+      .option("out-path", { describe: "HTML output path", type: "string", default: "./licenses.html" })
+      .option("registry", { describe: "URL of package registry to use", type: "string", default: "https://registry.npmjs.org" })
+      .option("tmp-folder-name", { describe: "Name of temporary folder", type: "string", default: ".license-gen-tmp" })
+      .option("template", { describe: "Path to custom mustache template", type: "string" })
+      .argv
+
+    const folder = (argv.folder || argv._[0])
+    CWD = folder ? path.resolve(folder) : process.cwd();
+    REGISTRY = argv.registry;
+    PKG_JSON_PATH = path.resolve(CWD, 'package.json');
+    PKG_LOCK_JSON_PATH = path.resolve(CWD, 'package-lock.json');
+    TMP_FOLDER_PATH = path.resolve(CWD, argv["tmp-folder-name"]);
+    OUT_PATH = path.resolve(argv["out-path"]);
+    TEMPLATE_PATH = argv.template ? path.resolve(argv.template) : path.join(__dirname, "template.html");
+    main();
+  })
+  .help()
+  .argv

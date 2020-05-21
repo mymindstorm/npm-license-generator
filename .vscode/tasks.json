@@ -20,7 +20,8 @@
 				"isDefault": true
 			},
 			"problemMatcher": [
-				"$tsc"
+				"$tsc",
+				"$eslint-stylish"
 			],
 			"label": "npm: build",
 			"detail": "tsc && cp -r view build"

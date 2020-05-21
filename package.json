@@ -10,7 +10,7 @@
     "build"
   ],
   "scripts": {
-    "build": "tsc && cp -r lib/* build",
+    "build": "eslint --fix src && tsc && cp -r lib/* build",
     "watch": "tsc --watch"
   },
   "author": "Brendan Early <mymindstorm@evermiss.net>",
