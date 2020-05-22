@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "build": "eslint --fix src && tsc && cp -p -r lib/* build",
+    "build-only": "tsc && cp -p -r lib/* build",
     "watch": "tsc --watch"
   },
   "author": "Brendan Early <mymindstorm@evermiss.net>",
