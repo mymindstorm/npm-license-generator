@@ -1,0 +1,29 @@
+name: Publish
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2.1.1
+    - name: Setup Node.js for use with actions
+      uses: actions/setup-node@v1.4.2
+      with:
+          registry-url: 'https://registry.npmjs.org'
+    - name: Build
+      run: |
+        npm ci
+        npm run build
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: build
+        path: build
+    - name: Publish
+      run: npm publish
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}

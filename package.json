@@ -1,8 +1,7 @@
 {
   "name": "npm-license-generator",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Generate HTML with license text from NPM dependencies",
   "bin": {
     "npm-license-generator": "./build/npm-license-generator"
   },
@@ -10,7 +9,7 @@
     "build"
   ],
   "scripts": {
-    "build": "eslint --fix src && tsc && cp -r lib/* build",
+    "build": "eslint --fix src && tsc && cp -p -r lib/* LICENSE build",
     "watch": "tsc --watch"
   },
   "author": "Brendan Early <mymindstorm@evermiss.net>",
@@ -37,5 +36,17 @@
     "superagent": "^5.2.2",
     "tar": "^6.0.2",
     "yargs": "^15.3.1"
+  },
+  "keywords": [
+    "license",
+    "licence",
+    "npm",
+    "static",
+    "generator"
+  ],
+  "homepage": "https://github.com/mymindstorm/npm-license-generator",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mymindstorm/npm-license-generator.git"
   }
 }

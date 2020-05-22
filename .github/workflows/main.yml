@@ -1,0 +1,26 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2.1.1
+    - name: Setup Node.js for use with actions
+      uses: actions/setup-node@v1.4.2
+    - name: Build
+      run: |
+        npm ci
+        npm run build
+    - name: Test Run
+      run: |
+        ./build/npm-license-generator
+        cp licenses.html build
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: build
+        path: build
