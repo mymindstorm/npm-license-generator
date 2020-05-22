@@ -18,6 +18,7 @@ let TEMPLATE_PATH = "";
 let NO_GROUP = false;
 let RUN_PKG_LOCK = false;
 let NO_SPDX = false;
+let ONLY_SPDX = false;
 let ERR_MISSING = false;
 const NO_MATCH_EXTENSIONS = ["js", "c", "cpp", "h", "class", "pl", "sh"];
 
@@ -84,58 +85,62 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
   });
   // Download tarball
   const fileName = `${pkg.name.replace("/", ".")}-${pkg.version}`;
-  await new Promise((resolve) => {
-    if (!pkg.tarball) {
-      console.error("No tarball location", pkg);
-      return license;
+  if (!ONLY_SPDX) {
+    await new Promise((resolve) => {
+      if (!pkg.tarball) {
+        console.error("No tarball location", pkg);
+        return license;
+      }
+      superagent
+        .get(pkg.tarball)
+        .buffer(true)
+        .parse(superagent.parse["application/octet-stream"])
+        .then((res) => {
+          fs.writeFileSync(
+            path.join(TMP_FOLDER_PATH, fileName + ".tgz"),
+            res.body
+          );
+          resolve();
+        });
+    });
+
+    // Extract license
+    const extractFolder = path.join(TMP_FOLDER_PATH, fileName);
+    if (!fs.existsSync(extractFolder)) {
+      fs.mkdirSync(extractFolder);
     }
-    superagent
-      .get(pkg.tarball)
-      .buffer(true)
-      .parse(superagent.parse["application/octet-stream"])
-      .then((res) => {
-        fs.writeFileSync(
-          path.join(TMP_FOLDER_PATH, fileName + ".tgz"),
-          res.body
-        );
-        resolve();
-      });
-  });
-
-  // Extract license
-  const extractFolder = path.join(TMP_FOLDER_PATH, fileName);
-  if (!fs.existsSync(extractFolder)) {
-    fs.mkdirSync(extractFolder);
-  }
-  await tar.extract({
-    cwd: extractFolder,
-    file: path.join(TMP_FOLDER_PATH, fileName + ".tgz"),
-    // strip: 1,
-    filter: (path) => {
-      const regex = /(LICENSE|LICENCE|COPYING|COPYRIGHT).*/gim;
-      const extension = path.split(".");
-      if (NO_MATCH_EXTENSIONS.includes(extension[extension.length - 1])) {
+    await tar.extract({
+      cwd: extractFolder,
+      file: path.join(TMP_FOLDER_PATH, fileName + ".tgz"),
+      // strip: 1,
+      filter: (path) => {
+        const regex = /(LICENSE|LICENCE|COPYING|COPYRIGHT).*/gim;
+        const extension = path.split(".");
+        if (NO_MATCH_EXTENSIONS.includes(extension[extension.length - 1])) {
+          return false;
+        }
+        if (regex.test(path)) {
+          return true;
+        }
         return false;
-      }
-      if (regex.test(path)) {
-        return true;
-      }
-      return false;
-    },
-  });
+      },
+    });
 
-  // Throw license files into array
-  const files = getAllFiles(extractFolder);
-  for (const path of files) {
-    license.text.push(fs.readFileSync(path).toString().trim());
+    // Throw license files into array
+    const files = getAllFiles(extractFolder);
+    for (const path of files) {
+      license.text.push(fs.readFileSync(path).toString().trim());
+    }
   }
 
   if (!license.text.length) {
-    console.warn(
-      `No license file found for package ${license.pkg.name}${
-        NO_SPDX ? "" : ", using SPDX string"
-      }.`
-    );
+    if (!ONLY_SPDX) {
+      console.warn(
+        `No license file found for package ${license.pkg.name}${
+          NO_SPDX ? "" : ", using SPDX string"
+        }.`
+      );
+    }
 
     if (!NO_SPDX) {
       // eslint-disable-next-line no-async-promise-executor
@@ -196,8 +201,12 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
       });
     }
 
-    if (!license.text.length && ERR_MISSING) {
-      process.exit(1);
+    if (!license.text.length) {
+      if (ERR_MISSING) {
+        process.exit(1);
+      } else {
+        console.error(`No license file for ${license.pkg.name}, skipping...`);
+      }
     }
   }
 
@@ -359,8 +368,13 @@ yargs
         type: "boolean",
         default: false,
       })
+      .option("only-spdx", {
+        describe: "Do not download tarballs, only use SPDX string",
+        type: "boolean",
+        default: false,
+      })
       .option("error-missing", {
-        describe: "Exit 1 if no licesense is present for a package",
+        describe: "Exit 1 if no license is present for a package",
         type: "boolean",
         default: false,
       }).argv;
@@ -381,6 +395,7 @@ yargs
         );
     RUN_PKG_LOCK = argv["package-lock"];
     NO_SPDX = argv["no-spdx"];
+    ONLY_SPDX = argv["only-spdx"];
     ERR_MISSING = argv["error-missing"];
     main();
   })
