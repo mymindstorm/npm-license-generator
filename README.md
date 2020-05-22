@@ -47,7 +47,9 @@ Supply your own template using the `--template` option. Templates are written in
 
 By default, Mustache is given two variables: 
   - `name`: the package name
-  - `renderLicenses`: an array of [GroupedLicense](https://github.com/mymindstorm/npm-license-generator/blob/ce81d002cd22320076e029ed2a612d4e6ad9dacf/src/types.d.ts#L45-L53). When using `--no-group`, an array of [LicenseInfo](https://github.com/mymindstorm/npm-license-generator/blob/ce81d002cd22320076e029ed2a612d4e6ad9dacf/src/types.d.ts#L32-L43) is passed to Mustache. Check the [lib](https://github.com/mymindstorm/npm-license-generator/tree/master/lib) folder for example templates.
+  - `renderLicenses`: an array of [GroupedLicense](https://github.com/mymindstorm/npm-license-generator/blob/ce81d002cd22320076e029ed2a612d4e6ad9dacf/src/types.d.ts#L45-L53). When using `--no-group`, an array of [LicenseInfo](https://github.com/mymindstorm/npm-license-generator/blob/ce81d002cd22320076e029ed2a612d4e6ad9dacf/src/types.d.ts#L32-L43) is passed instead. 
+  
+  Check the [lib](https://github.com/mymindstorm/npm-license-generator/tree/master/lib) folder for example templates.
 
 ## How licenses are found
 
