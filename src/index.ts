@@ -64,7 +64,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
             return license;
           }
         }
-        license.pkg.homepage = res.body.homepage || res.body.repository.url;
+        license.pkg.homepage = res.body.homepage || res.body.repository?.url;
         if (!pkg.tarball) {
           try {
             pkg.tarball = res.body.versions[pkg.version].dist.tarball;
