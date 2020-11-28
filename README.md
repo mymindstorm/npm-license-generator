@@ -54,5 +54,6 @@ By default, Mustache is given two variables:
 ## How licenses are found
 
 1. Get package version and tarball location from package.lock
-2. If there is a license file in the tarball, then extract and use that
-3. Otherwise, evaluate SPDX string and use a file from https://github.com/spdx/license-list-data/tree/master/text
+2. Look for licenses in node_modules if avalible
+3. Otherwise download tarball, extract, look for licenses, and use that
+4. Otherwise, evaluate SPDX string and use a file from https://github.com/spdx/license-list-data/tree/master/text
