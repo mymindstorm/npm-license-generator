@@ -8,6 +8,15 @@ import yargs from "yargs";
 import tar from "tar";
 import mustache from "mustache";
 import spdx from "spdx-expression-parse";
+// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// @ts-ignore
+import cacheModule from "cache-service-cache-module";
+// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// @ts-ignore
+import cachePlugin from "superagent-cache-plugin";
+
+const cache = new cacheModule();
+const superagentCache = cachePlugin(cache);
 
 let CWD = "";
 let REGISTRY = "";
@@ -221,6 +230,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
               .get(
                 `https://raw.githubusercontent.com/spdx/license-list-data/master/text/${licenseString}.txt`
               )
+              .use(superagentCache)
               .then((res) => {
                 license.text.push(res.text);
                 resolve();
