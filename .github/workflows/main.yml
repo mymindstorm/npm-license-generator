@@ -13,7 +13,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2.1.1
     - name: Setup Node.js for use with actions
-      uses: actions/setup-node@v1.4.2
+      uses: actions/setup-node@v1.4.4
     - name: Build
       run: |
         npm ci
@@ -33,7 +33,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2.1.1
     - name: Setup Node.js for use with actions
-      uses: actions/setup-node@v1.4.2
+      uses: actions/setup-node@v1.4.4
       with:
         node-version: '8'
     - name: Build
