@@ -13,6 +13,7 @@ let CWD = "";
 let REGISTRY = "";
 let PKG_JSON_PATH = "";
 let PKG_LOCK_JSON_PATH = "";
+let NODE_MODULES_PATH = "";
 let TMP_FOLDER_PATH = "";
 let OUT_PATH = "";
 let TEMPLATE_PATH = "";
@@ -21,7 +22,17 @@ let RUN_PKG_LOCK = false;
 let NO_SPDX = false;
 let ONLY_SPDX = false;
 let ERR_MISSING = false;
-const NO_MATCH_EXTENSIONS = ["js", "c", "cpp", "h", "class", "pl", "sh"];
+const NO_MATCH_EXTENSIONS = [
+  "js",
+  "ts",
+  "d.ts",
+  "c",
+  "cpp",
+  "h",
+  "class",
+  "pl",
+  "sh",
+];
 
 function getAllFiles(dirPath: string, arrayOfFiles?: string[]): string[] {
   const files = fs.readdirSync(dirPath);
@@ -30,7 +41,7 @@ function getAllFiles(dirPath: string, arrayOfFiles?: string[]): string[] {
 
   files.forEach(function (file) {
     if (fs.statSync(dirPath + "/" + file).isDirectory()) {
-      arrayOfFiles = getAllFiles(dirPath + "/" + file, arrayOfFiles);
+      arrayOfFiles = getAllFiles(path.join(dirPath, file), arrayOfFiles);
     } else {
       arrayOfFiles?.push(path.join(dirPath, file));
     }
@@ -84,9 +95,33 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
         return license;
       });
   });
-  // Download tarball
-  const fileName = `${pkg.name.replace("/", ".")}-${pkg.version}`;
+
+  // look for license in node_modules
   if (!ONLY_SPDX) {
+    try {
+      let files = getAllFiles(path.join(NODE_MODULES_PATH, pkg.name));
+      files = files.filter((path) => {
+        const regex = /[/\\](LICENSE|LICENCE|COPYING|COPYRIGHT)\.?.*/gim;
+        const extension = path.split(".");
+        if (NO_MATCH_EXTENSIONS.includes(extension[extension.length - 1])) {
+          return false;
+        }
+        if (regex.test(path)) {
+          return true;
+        }
+        return false;
+      });
+      for (const path of files) {
+        license.text.push(fs.readFileSync(path).toString().trim());
+      }
+    } catch (e) {
+      /* empty */
+    }
+  }
+
+  // Download tarball if not found locally
+  const fileName = `${pkg.name.replace("/", ".")}-${pkg.version}`;
+  if (!ONLY_SPDX && !license.text.length) {
     await new Promise((resolve) => {
       if (!pkg.tarball) {
         console.error("No tarball location", pkg);
@@ -115,7 +150,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
       file: path.join(TMP_FOLDER_PATH, fileName + ".tgz"),
       // strip: 1,
       filter: (path) => {
-        const regex = /(LICENSE|LICENCE|COPYING|COPYRIGHT).*/gim;
+        const regex = /[/\\](LICENSE|LICENCE|COPYING|COPYRIGHT)\.?.*/gim;
         const extension = path.split(".");
         if (NO_MATCH_EXTENSIONS.includes(extension[extension.length - 1])) {
           return false;
@@ -386,6 +421,7 @@ yargs
     PKG_JSON_PATH = path.resolve(CWD, "package.json");
     PKG_LOCK_JSON_PATH = path.resolve(CWD, "package-lock.json");
     TMP_FOLDER_PATH = path.resolve(CWD, argv["tmp-folder-name"]);
+    NODE_MODULES_PATH = path.resolve(CWD, "node_modules");
     OUT_PATH = path.resolve(argv["out-path"]);
     NO_GROUP = argv["no-group"];
     TEMPLATE_PATH = argv.template
