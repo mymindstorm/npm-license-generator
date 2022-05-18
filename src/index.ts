@@ -69,7 +69,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
   const url = new URL(REGISTRY);
   url.pathname = pkg.name;
   // Get registry info
-  await new Promise((resolve) => {
+  await new Promise<void>((resolve) => {
     superagent
       .get(url.toString())
       .then((res) => {
@@ -98,9 +98,15 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
         resolve();
       })
       .catch((e) => {
-        console.warn(
-          `Could not get info from registry for ${pkg.name}! HTTP status code ${e.status}`
-        );
+        if (e?.status) {
+          console.warn(
+            `Could not get info from registry for ${pkg.name}! HTTP status code ${e.status}`
+          );
+        } else {
+          console.warn(
+            `Could not get info from registry for ${pkg.name}! Error: ${e}`
+          );
+        }
         return license;
       });
   });
@@ -131,7 +137,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
   // Download tarball if not found locally
   const fileName = `${pkg.name.replace("/", ".")}-${pkg.version}`;
   if (!ONLY_SPDX && !license.text.length) {
-    await new Promise((resolve) => {
+    await new Promise<void>((resolve) => {
       if (!pkg.tarball) {
         console.error("No tarball location", pkg);
         return license;
@@ -189,13 +195,13 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
 
     if (!NO_SPDX) {
       // eslint-disable-next-line no-async-promise-executor
-      await new Promise(async (resolve) => {
+      await new Promise<void>(async (resolve) => {
         let parsedLicense: SPDXLicense | SPDXJunction | undefined;
         try {
           parsedLicense = spdx(license.type);
         } catch (e) {
           console.error(
-            `Error: Could not parse licesnse string for ${license.pkg.name}! L: ${license.type}`
+            `Error: Could not parse license string '${license.type}' for ${license.pkg.name}!`
           );
           resolve();
           return;
@@ -225,7 +231,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
         }
 
         for (const licenseString of licenseStrings) {
-          await new Promise((resolve) => {
+          await new Promise<void>((resolve) => {
             superagent
               .get(
                 `https://raw.githubusercontent.com/spdx/license-list-data/master/text/${licenseString}.txt`
