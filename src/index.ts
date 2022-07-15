@@ -69,7 +69,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
   const url = new URL(REGISTRY);
   url.pathname = pkg.name;
   // Get registry info
-  await new Promise<void>((resolve) => {
+  await new Promise<boolean>((resolve) => {
     superagent
       .get(url.toString())
       .then((res) => {
@@ -81,6 +81,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
             console.error(
               `Could not find license info in registry for ${pkg.name} ${pkg.version}`
             );
+            resolve(false);
             return license;
           }
         }
@@ -92,10 +93,11 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
             console.error(
               `Could not find version info for ${pkg.name} ${pkg.version}`
             );
+            resolve(false);
             return license;
           }
         }
-        resolve();
+        resolve(true);
       })
       .catch((e) => {
         if (e?.status) {
@@ -107,6 +109,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
             `Could not get info from registry for ${pkg.name}! Error: ${e}`
           );
         }
+        resolve(false);
         return license;
       });
   });
@@ -137,9 +140,10 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
   // Download tarball if not found locally
   const fileName = `${pkg.name.replace("/", ".")}-${pkg.version}`;
   if (!ONLY_SPDX && !license.text.length) {
-    await new Promise<void>((resolve) => {
+    const hasTarball = await new Promise<boolean>((resolve) => {
       if (!pkg.tarball) {
         console.error("No tarball location", pkg);
+        resolve(false);
         return license;
       }
       superagent
@@ -151,36 +155,39 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
             path.join(TMP_FOLDER_PATH, fileName + ".tgz"),
             res.body
           );
-          resolve();
+          resolve(true);
         });
     });
 
-    // Extract license
-    const extractFolder = path.join(TMP_FOLDER_PATH, fileName);
-    if (!fs.existsSync(extractFolder)) {
-      fs.mkdirSync(extractFolder);
-    }
-    await tar.extract({
-      cwd: extractFolder,
-      file: path.join(TMP_FOLDER_PATH, fileName + ".tgz"),
-      // strip: 1,
-      filter: (path) => {
-        const regex = /[/\\](LICENSE|LICENCE|COPYING|COPYRIGHT)\.?.*/gim;
-        const extension = path.split(".");
-        if (NO_MATCH_EXTENSIONS.includes(extension[extension.length - 1])) {
-          return false;
-        }
-        if (regex.test(path)) {
-          return true;
-        }
-        return false;
-      },
-    });
+    if (hasTarball) {
 
-    // Throw license files into array
-    const files = getAllFiles(extractFolder);
-    for (const path of files) {
-      license.text.push(fs.readFileSync(path).toString().trim());
+      // Extract license
+      const extractFolder = path.join(TMP_FOLDER_PATH, fileName);
+      if (!fs.existsSync(extractFolder)) {
+        fs.mkdirSync(extractFolder);
+      }
+      await tar.extract({
+        cwd: extractFolder,
+        file: path.join(TMP_FOLDER_PATH, fileName + ".tgz"),
+        // strip: 1,
+        filter: (path) => {
+          const regex = /[/\\](LICENSE|LICENCE|COPYING|COPYRIGHT)\.?.*/gim;
+          const extension = path.split(".");
+          if (NO_MATCH_EXTENSIONS.includes(extension[extension.length - 1])) {
+            return false;
+          }
+          if (regex.test(path)) {
+            return true;
+          }
+          return false;
+        },
+      });
+
+      // Throw license files into array
+      const files = getAllFiles(extractFolder);
+      for (const path of files) {
+        license.text.push(fs.readFileSync(path).toString().trim());
+      }
     }
   }
 
