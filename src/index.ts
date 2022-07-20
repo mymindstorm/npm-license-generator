@@ -14,9 +14,12 @@ import cacheModule from "cache-service-cache-module";
 // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
 // @ts-ignore
 import cachePlugin from "superagent-cache-plugin";
+import superagentProxy from "superagent-proxy";
 
 const cache = new cacheModule();
 const superagentCache = cachePlugin(cache);
+superagentProxy(superagent);
+const proxy = process.env.http_proxy || "";
 
 let CWD = "";
 let REGISTRY = "";
@@ -26,9 +29,9 @@ let NODE_MODULES_PATH = "";
 let TMP_FOLDER_PATH = "";
 let OUT_PATH = "";
 let TEMPLATE_PATH = "";
-let NO_GROUP = false;
+let GROUP = true;
 let RUN_PKG_LOCK = false;
-let NO_SPDX = false;
+let SPDX = true;
 let ONLY_SPDX = false;
 let ERR_MISSING = false;
 const NO_MATCH_EXTENSIONS = [
@@ -72,6 +75,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
   await new Promise<void>((resolve) => {
     superagent
       .get(url.toString())
+      .proxy(proxy)
       .then((res) => {
         license.type = res.body.license;
         if (!res.body.license) {
@@ -144,6 +148,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
       }
       superagent
         .get(pkg.tarball)
+        .proxy(proxy)
         .buffer(true)
         .parse(superagent.parse["application/octet-stream"])
         .then((res) => {
@@ -188,12 +193,12 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
     if (!ONLY_SPDX) {
       console.warn(
         `No license file found for package ${license.pkg.name}${
-          NO_SPDX ? "" : ", using SPDX string"
+          SPDX ? "" : ", using SPDX string"
         }.`
       );
     }
 
-    if (!NO_SPDX) {
+    if (SPDX) {
       // eslint-disable-next-line no-async-promise-executor
       await new Promise<void>(async (resolve) => {
         let parsedLicense: SPDXLicense | SPDXJunction | undefined;
@@ -236,6 +241,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
               .get(
                 `https://raw.githubusercontent.com/spdx/license-list-data/master/text/${licenseString}.txt`
               )
+              .proxy(proxy)
               .use(superagentCache)
               .then((res) => {
                 license.text.push(res.text);
@@ -335,7 +341,7 @@ async function main(): Promise<void> {
   });
 
   const groupedLicenses: GroupedLicense[] = [];
-  if (!NO_GROUP) {
+  if (GROUP) {
     for (const license of licenses) {
       for (const i in license.text) {
         const text = license.text[i];
@@ -366,7 +372,7 @@ async function main(): Promise<void> {
     }
   }
 
-  const renderLicenses = NO_GROUP ? licenses : groupedLicenses;
+  const renderLicenses = !GROUP ? licenses : groupedLicenses;
   const outtext = mustache.render(fs.readFileSync(TEMPLATE_PATH).toString(), {
     renderLicenses,
     name: pkgInfo.name,
@@ -405,20 +411,20 @@ yargs
         describe: "Path to custom mustache template",
         type: "string",
       })
-      .option("no-group", {
-        describe: "Do not group licenses",
+      .option("group", {
+        describe: "Group licenses",
         type: "boolean",
-        default: false,
+        default: true,
       })
       .option("package-lock", {
         describe: "Run on all packages listed in package-lock.json",
         type: "boolean",
         default: false,
       })
-      .option("no-spdx", {
-        describe: "Do not download license file based on SPDX string",
+      .option("spdx", {
+        describe: "Download license file based on SPDX string",
         type: "boolean",
-        default: false,
+        default: true,
       })
       .option("only-spdx", {
         describe: "Do not download tarballs, only use SPDX string",
@@ -439,15 +445,15 @@ yargs
     TMP_FOLDER_PATH = path.resolve(CWD, argv["tmp-folder-name"]);
     NODE_MODULES_PATH = path.resolve(CWD, "node_modules");
     OUT_PATH = path.resolve(argv["out-path"]);
-    NO_GROUP = argv["no-group"];
+    GROUP = argv["group"];
     TEMPLATE_PATH = argv.template
       ? path.resolve(argv.template)
       : path.join(
           __dirname,
-          NO_GROUP ? "template.html" : "template-grouped.html"
+          !GROUP ? "template.html" : "template-grouped.html"
         );
     RUN_PKG_LOCK = argv["package-lock"];
-    NO_SPDX = argv["no-spdx"];
+    SPDX = argv["spdx"];
     ONLY_SPDX = argv["only-spdx"];
     ERR_MISSING = argv["error-missing"];
     main();
