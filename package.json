@@ -9,7 +9,7 @@
     "build"
   ],
   "scripts": {
-    "build": "eslint --fix src && tsc && cp -p -r lib/* build",
+    "build": "eslint --fix src/* && tsc && cp -p -r lib/* build",
     "build-only": "tsc && cp -p -r lib/* build",
     "watch": "tsc --watch"
   },
@@ -24,19 +24,21 @@
     "@types/yargs": "^15.0.5",
     "@typescript-eslint/eslint-plugin": "^2.34.0",
     "@typescript-eslint/parser": "^2.34.0",
-    "eslint": "^7.0.0",
+    "eslint": "*",
     "eslint-config-prettier": "^6.11.0",
     "eslint-plugin-prettier": "^3.1.3",
     "prettier": "^2.0.5",
     "typescript": "^3.9.2"
   },
   "dependencies": {
+    "@types/superagent-proxy": "^3.0.0",
     "cache-service-cache-module": "^2.0.1",
     "mustache": "^4.0.1",
     "rimraf": "^3.0.2",
     "spdx-expression-parse": "^3.0.1",
     "superagent": "^5.2.2",
     "superagent-cache-plugin": "^3.0.0-beta.1",
+    "superagent-proxy": "^3.0.0",
     "tar": "^6.0.2",
     "yargs": "^15.3.1"
   },
