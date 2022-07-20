@@ -30,11 +30,14 @@ Options:
   --tmp-folder-name  Name of temporary folder
                                           [string] [default: ".license-gen-tmp"]
   --template         Path to custom mustache template                   [string]
-  --no-group         Do not group licenses            [boolean] [default: false]
+  --auth             Enable registry authentication, please call `npm adduser` first.
+                                                      [boolean] [default: false]
+  --group            Group licenses, to disable it, use --no-spdx
+                                                       [boolean] [default: true]
   --package-lock     Run on all packages listed in package-lock.json
                                                       [boolean] [default: false]
-  --no-spdx          Do not download license file based on SPDX string
-                                                      [boolean] [default: false]
+  --spdx             Download license file based on SPDX string, to disable it, use `--no-spdx`.
+                                                       [boolean] [default: true]
   --only-spdx        Do not download tarballs, only use SPDX string
                                                       [boolean] [default: false]
   --error-missing    Exit 1 if no license is present for a package
