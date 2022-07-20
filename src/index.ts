@@ -15,12 +15,14 @@ import cacheModule from "cache-service-cache-module";
 // @ts-ignore
 import cachePlugin from "superagent-cache-plugin";
 import superagentProxy from "superagent-proxy";
+import { retrieveAuthToken } from "./retrieveAuthToken";
 
 const cache = new cacheModule();
 const superagentCache = cachePlugin(cache);
 superagentProxy(superagent);
 const proxy = process.env.http_proxy || "";
 
+let AUTH_TOKEN = "";
 let CWD = "";
 let REGISTRY = "";
 let PKG_JSON_PATH = "";
@@ -29,6 +31,7 @@ let NODE_MODULES_PATH = "";
 let TMP_FOLDER_PATH = "";
 let OUT_PATH = "";
 let TEMPLATE_PATH = "";
+let AUTH = false;
 let GROUP = true;
 let RUN_PKG_LOCK = false;
 let SPDX = true;
@@ -76,6 +79,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
     superagent
       .get(url.toString())
       .proxy(proxy)
+      .auth(AUTH_TOKEN, { type: "bearer" })
       .then((res) => {
         license.type = res.body.license;
         if (!res.body.license) {
@@ -149,6 +153,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
       superagent
         .get(pkg.tarball)
         .proxy(proxy)
+        .auth(AUTH_TOKEN, { type: "bearer" })
         .buffer(true)
         .parse(superagent.parse["application/octet-stream"])
         .then((res) => {
@@ -249,7 +254,7 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
               })
               .catch((e) => {
                 console.warn(
-                  `Error downloading license for ${license.pkg.name}. L: ${licenseString} S: ${e.status}`
+                  `Error downloading license for ${license.pkg.name}. L: ${licenseString} S: ${e}`
                 );
                 resolve();
               });
@@ -272,6 +277,16 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
 }
 
 async function main(): Promise<void> {
+  if (AUTH) {
+    const url = new URL(REGISTRY);
+    AUTH_TOKEN = retrieveAuthToken(url.host) || "";
+
+    if (!AUTH_TOKEN) {
+      console.error(`Error read token from .npmrc for registry ${url.host}`);
+      process.exit(1);
+    }
+  }
+
   let pkgInfo: PkgJsonData | undefined;
   let pkgLockInfo: PkgLockJsonData | undefined;
   try {
@@ -411,6 +426,12 @@ yargs
         describe: "Path to custom mustache template",
         type: "string",
       })
+      .option("auth", {
+        describe:
+          "Enable registry authentication, please call npm adduser first.",
+        type: "boolean",
+        default: false,
+      })
       .option("group", {
         describe: "Group licenses",
         type: "boolean",
@@ -453,6 +474,7 @@ yargs
           !GROUP ? "template.html" : "template-grouped.html"
         );
     RUN_PKG_LOCK = argv["package-lock"];
+    AUTH = argv["auth"];
     SPDX = argv["spdx"];
     ONLY_SPDX = argv["only-spdx"];
     ERR_MISSING = argv["error-missing"];
