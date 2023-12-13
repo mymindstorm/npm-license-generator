@@ -16,6 +16,9 @@
   },
   "author": "Brendan Early <mymindstorm@evermiss.net>",
   "license": "MIT",
+  "exports": {
+    ".": "./build/licenses.js"
+  },
   "devDependencies": {
     "@types/mustache": "^4.0.1",
     "@types/node": "^20.10.4",

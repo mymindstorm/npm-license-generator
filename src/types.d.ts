@@ -5,6 +5,25 @@ type PkgLockDependencies = {
   };
 };
 
+interface Options {
+  cwd: string;
+  registry: string;
+  nodeModulesPath: string;
+  tmpFolderPath: string;
+  outPath: string;
+  templatePath: string;
+  noGroup: boolean;
+  runPkgLock: boolean;
+  noSpdx: boolean;
+  onlySpdx: boolean;
+  errMissing: boolean;
+}
+
+interface AllPkgsInfo {
+  pkgInfo: PkgJsonData;
+  licenses: LicenseInfo[];
+}
+
 interface PkgJsonData {
   name: string;
   version: string;
