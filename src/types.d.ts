@@ -1,3 +1,29 @@
+type PkgLockDependencies = {
+  [name: string]: {
+    version: string;
+    resolved: string;
+  };
+};
+
+interface Options {
+  cwd: string;
+  registry: string;
+  nodeModulesPath: string;
+  tmpFolderPath: string;
+  outPath: string;
+  templatePath: string;
+  noGroup: boolean;
+  runPkgLock: boolean;
+  noSpdx: boolean;
+  onlySpdx: boolean;
+  errMissing: boolean;
+}
+
+interface AllPkgsInfo {
+  pkgInfo: PkgJsonData;
+  licenses: LicenseInfo[];
+}
+
 interface PkgJsonData {
   name: string;
   version: string;
@@ -21,12 +47,8 @@ interface PkgJsonData {
 }
 
 interface PkgLockJsonData {
-  dependencies: {
-    [name: string]: {
-      version: string;
-      resolved: string;
-    };
-  };
+  dependencies: PkgLockDependencies | undefined;
+  packages: PkgLockDependencies | undefined;
 }
 
 interface PkgInfo {
