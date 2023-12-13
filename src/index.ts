@@ -8,11 +8,9 @@ import yargs from "yargs";
 import tar from "tar";
 import mustache from "mustache";
 import spdx from "spdx-expression-parse";
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-// @ts-ignore
+// @ts-expect-error No declaration file
 import cacheModule from "cache-service-cache-module";
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-// @ts-ignore
+// @ts-expect-error No declaration file
 import cachePlugin from "superagent-cache-plugin";
 
 const cache = new cacheModule();
@@ -267,12 +265,13 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
 
 async function main(): Promise<void> {
   let pkgInfo: PkgJsonData | undefined;
-  let pkgLockInfo: PkgLockJsonData | undefined;
+  let pkgLockDependencies: PkgLockDependencies | undefined;
   try {
     const pkgJson = fs.readFileSync(PKG_JSON_PATH, "utf8");
     pkgInfo = JSON.parse(pkgJson);
     const pkgLockJson = fs.readFileSync(PKG_LOCK_JSON_PATH, "utf8");
-    pkgLockInfo = JSON.parse(pkgLockJson);
+    const pkgLockInfo: PkgLockJsonData = JSON.parse(pkgLockJson);
+    pkgLockDependencies = pkgLockInfo?.dependencies ?? pkgLockInfo?.packages;
   } catch (e) {
     console.error("Error parsing package.json or package-lock.json", e);
     process.exit(1);
@@ -295,18 +294,21 @@ async function main(): Promise<void> {
       keys = keys.concat(Object.keys(pkgInfo.optionalDependencies));
     }
   } else {
-    if (pkgLockInfo && pkgLockInfo.dependencies) {
-      keys = Object.keys(pkgLockInfo.dependencies);
+    if (pkgLockDependencies) {
+      keys = Object.keys(pkgLockDependencies);
     }
   }
 
   const pkgs: PkgInfo[] = [];
   for (const pkg of keys) {
     const info: PkgInfo = { name: pkg, version: "" };
-    if (pkgLockInfo) {
-      if (pkgLockInfo.dependencies && pkgLockInfo.dependencies[pkg]) {
-        info.version = pkgLockInfo.dependencies[pkg].version;
-        info.tarball = pkgLockInfo.dependencies[pkg].resolved;
+    if (pkgLockDependencies) {
+      const dependency =
+        pkgLockDependencies?.[pkg] ??
+        pkgLockDependencies?.["node_modules/" + pkg];
+      if (dependency) {
+        info.version = dependency.version;
+        info.tarball = dependency.resolved;
       } else {
         console.warn(`Could not find ${pkg} in package-lock.json! Skipping...`);
         continue;
@@ -431,7 +433,7 @@ yargs
         default: false,
       }).argv;
 
-    const folder = argv.folder || argv._[0];
+    const folder = argv.folder || (argv._[0] as string);
     CWD = folder ? path.resolve(folder) : process.cwd();
     REGISTRY = argv.registry;
     PKG_JSON_PATH = path.resolve(CWD, "package.json");

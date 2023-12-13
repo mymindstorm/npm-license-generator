@@ -1,3 +1,10 @@
+type PkgLockDependencies = {
+  [name: string]: {
+    version: string;
+    resolved: string;
+  };
+};
+
 interface PkgJsonData {
   name: string;
   version: string;
@@ -21,12 +28,8 @@ interface PkgJsonData {
 }
 
 interface PkgLockJsonData {
-  dependencies: {
-    [name: string]: {
-      version: string;
-      resolved: string;
-    };
-  };
+  dependencies: PkgLockDependencies | undefined;
+  packages: PkgLockDependencies | undefined;
 }
 
 interface PkgInfo {
