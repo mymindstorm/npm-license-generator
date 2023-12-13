@@ -9,6 +9,7 @@
     "build"
   ],
   "scripts": {
+    "prepare": "npm run build-only",
     "start": "npm run build && npm exec npm-license-generator",
     "build": "eslint --fix src && tsc && cp -p -r lib/* build",
     "build-only": "tsc && cp -p -r lib/* build",
