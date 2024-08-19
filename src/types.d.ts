@@ -20,8 +20,19 @@ interface PkgJsonData {
   };
 }
 
-interface PkgLockJsonData {
+interface PkgLockJsonDataV1 {
+  lockfileVersion: number;
   dependencies: {
+    [name: string]: {
+      version: string;
+      resolved: string;
+    };
+  };
+}
+
+interface PkgLockJsonData {
+  lockfileVersion: number;
+  packages: {
     [name: string]: {
       version: string;
       resolved: string;

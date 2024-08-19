@@ -267,12 +267,14 @@ async function getPkgLicense(pkg: PkgInfo): Promise<LicenseInfo> {
 
 async function main(): Promise<void> {
   let pkgInfo: PkgJsonData | undefined;
-  let pkgLockInfo: PkgLockJsonData | undefined;
+  let pkgLockInfo: PkgLockJsonDataV1 | PkgLockJsonData | undefined;
+  let pkgLockVersion: number;
   try {
     const pkgJson = fs.readFileSync(PKG_JSON_PATH, "utf8");
     pkgInfo = JSON.parse(pkgJson);
     const pkgLockJson = fs.readFileSync(PKG_LOCK_JSON_PATH, "utf8");
     pkgLockInfo = JSON.parse(pkgLockJson);
+    pkgLockVersion = pkgLockInfo?.lockfileVersion || 1;
   } catch (e) {
     console.error("Error parsing package.json or package-lock.json", e);
     process.exit(1);
@@ -295,18 +297,25 @@ async function main(): Promise<void> {
       keys = keys.concat(Object.keys(pkgInfo.optionalDependencies));
     }
   } else {
-    if (pkgLockInfo && pkgLockInfo.dependencies) {
-      keys = Object.keys(pkgLockInfo.dependencies);
+    const dependencies = pkgLockVersion === 1 ?
+      (pkgLockInfo as PkgLockJsonDataV1)?.dependencies :
+      (pkgLockInfo as PkgLockJsonData)?.packages;
+    if (dependencies) {
+      keys = Object.keys(dependencies);
     }
   }
 
   const pkgs: PkgInfo[] = [];
+  const dependencies = pkgLockVersion === 1 ?
+        (pkgLockInfo as PkgLockJsonDataV1)?.dependencies :
+        (pkgLockInfo as PkgLockJsonData)?.packages;
   for (const pkg of keys) {
     const info: PkgInfo = { name: pkg, version: "" };
     if (pkgLockInfo) {
-      if (pkgLockInfo.dependencies && pkgLockInfo.dependencies[pkg]) {
-        info.version = pkgLockInfo.dependencies[pkg].version;
-        info.tarball = pkgLockInfo.dependencies[pkg].resolved;
+      const pkgKey = pkgLockVersion === 1 ? pkg : `node_modules/${pkg}`;
+      if (dependencies?.[pkgKey]) {
+        info.version = dependencies[pkgKey].version;
+        info.tarball = dependencies[pkgKey].resolved;
       } else {
         console.warn(`Could not find ${pkg} in package-lock.json! Skipping...`);
         continue;
