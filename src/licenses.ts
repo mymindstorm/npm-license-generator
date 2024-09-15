@@ -2,16 +2,9 @@ import superagent from "superagent";
 import { URL } from "url";
 import path from "path";
 import fs from "fs";
-import rimraf from "rimraf";
-import tar from "tar";
+import { rimraf } from "rimraf";
+import { extract } from "tar";
 import spdx from "spdx-expression-parse";
-// @ts-expect-error No declaration file
-import cacheModule from "cache-service-cache-module";
-// @ts-expect-error No declaration file
-import cachePlugin from "superagent-cache-plugin";
-
-const cache = new cacheModule();
-const superagentCache = cachePlugin(cache);
 
 export const DEFAULTS: Options = {
   cwd: "",
@@ -57,7 +50,7 @@ function getAllFiles(dirPath: string, arrayOfFiles?: string[]): string[] {
 
 async function getPkgLicense(
   options: Options,
-  pkg: PkgInfo
+  pkg: PkgInfo,
 ): Promise<LicenseInfo> {
   // Get package info from registry
   const license: LicenseInfo = {
@@ -76,9 +69,9 @@ async function getPkgLicense(
         if (!res.body.license) {
           try {
             license.type = res.body.versions[pkg.version].license;
-          } catch (e) {
+          } catch {
             console.error(
-              `Could not find license info in registry for ${pkg.name} ${pkg.version}`
+              `Could not find license info in registry for ${pkg.name} ${pkg.version}`,
             );
             return license;
           }
@@ -87,9 +80,9 @@ async function getPkgLicense(
         if (!pkg.tarball) {
           try {
             pkg.tarball = res.body.versions[pkg.version].dist.tarball;
-          } catch (e) {
+          } catch {
             console.error(
-              `Could not find version info for ${pkg.name} ${pkg.version}`
+              `Could not find version info for ${pkg.name} ${pkg.version}`,
             );
             return license;
           }
@@ -99,11 +92,11 @@ async function getPkgLicense(
       .catch((e) => {
         if (e?.status) {
           console.warn(
-            `Could not get info from registry for ${pkg.name}! HTTP status code ${e.status}`
+            `Could not get info from registry for ${pkg.name}! HTTP status code ${e.status}`,
           );
         } else {
           console.warn(
-            `Could not get info from registry for ${pkg.name}! Error: ${e}`
+            `Could not get info from registry for ${pkg.name}! Error: ${e}`,
           );
         }
         return license;
@@ -128,7 +121,7 @@ async function getPkgLicense(
       for (const path of files) {
         license.text.push(fs.readFileSync(path).toString().trim());
       }
-    } catch (e) {
+    } catch {
       /* empty */
     }
   }
@@ -148,7 +141,7 @@ async function getPkgLicense(
         .then((res) => {
           fs.writeFileSync(
             path.join(options.tmpFolderPath, fileName + ".tgz"),
-            res.body
+            res.body,
           );
           resolve();
         });
@@ -159,7 +152,7 @@ async function getPkgLicense(
     if (!fs.existsSync(extractFolder)) {
       fs.mkdirSync(extractFolder);
     }
-    await tar.extract({
+    await extract({
       cwd: extractFolder,
       file: path.join(options.tmpFolderPath, fileName + ".tgz"),
       // strip: 1,
@@ -188,7 +181,7 @@ async function getPkgLicense(
       console.warn(
         `No license file found for package ${license.pkg.name}${
           options.noSpdx ? "" : ", using SPDX string"
-        }.`
+        }.`,
       );
     }
 
@@ -198,9 +191,9 @@ async function getPkgLicense(
         let parsedLicense: SPDXLicense | SPDXJunction | undefined;
         try {
           parsedLicense = spdx(license.type);
-        } catch (e) {
+        } catch {
           console.error(
-            `Error: Could not parse license string '${license.type}' for ${license.pkg.name}!`
+            `Error: Could not parse license string '${license.type}' for ${license.pkg.name}!`,
           );
           resolve();
           return;
@@ -233,16 +226,15 @@ async function getPkgLicense(
           await new Promise<void>((resolve) => {
             superagent
               .get(
-                `https://raw.githubusercontent.com/spdx/license-list-data/master/text/${licenseString}.txt`
+                `https://raw.githubusercontent.com/spdx/license-list-data/master/text/${licenseString}.txt`,
               )
-              .use(superagentCache)
               .then((res) => {
                 license.text.push(res.text);
                 resolve();
               })
               .catch((e) => {
                 console.warn(
-                  `Error downloading license for ${license.pkg.name}. L: ${licenseString} S: ${e.status}`
+                  `Error downloading license for ${license.pkg.name}. L: ${licenseString} S: ${e.status}`,
                 );
                 resolve();
               });
@@ -265,7 +257,7 @@ async function getPkgLicense(
 }
 
 export async function retrieveAllLicenses(
-  argOptions = {}
+  argOptions = {},
 ): Promise<AllPkgsInfo> {
   const options = Object.assign(structuredClone(DEFAULTS), argOptions);
 
@@ -335,7 +327,7 @@ export async function retrieveAllLicenses(
 
   const licenses = await Promise.all(promises);
 
-  rimraf.sync(options.tmpFolderPath);
+  await rimraf(options.tmpFolderPath);
 
   return {
     pkgInfo,

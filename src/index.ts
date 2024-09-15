@@ -56,7 +56,7 @@ async function main(options: Options): Promise<void> {
     {
       renderLicenses,
       name: pkgInfo.name,
-    }
+    },
   );
 
   fs.writeFileSync(options.outPath, outtext);
@@ -130,7 +130,7 @@ yargs
         ? path.resolve(argv.template)
         : path.join(
             __dirname,
-            argv["no-group"] ? "template.html" : "template-grouped.html"
+            argv["no-group"] ? "template.html" : "template-grouped.html",
           ),
       runPkgLock: argv["package-lock"],
       noSpdx: argv["no-spdx"],
@@ -139,4 +139,5 @@ yargs
     };
     main(options);
   })
-  .help().argv;
+  .help()
+  .parse();
